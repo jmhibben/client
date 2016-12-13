@@ -16,8 +16,7 @@ import Markdown
 import List.Extra as ListExtra
 
 import Types exposing (..)
-import Trees exposing (update, view, defaultTree, blankTree)
-import TreeUtils exposing (..)
+import Columns exposing (update, view, defaultColumns, getContent)
 import Coders exposing (modelDecoder, modelToValue)
 
 
@@ -40,9 +39,7 @@ port message : (String, Json.Encode.Value) -> Cmd msg
 
 
 type alias Model =
-  { tree : Tree
-  , treePast : List Tree
-  , treeFuture : List Tree
+  { columns : List Column
   , viewState : ViewState
   , nextId : Int
   , saved : Bool
@@ -51,9 +48,7 @@ type alias Model =
 
 defaultModel : Model
 defaultModel =
-  { tree = defaultTree
-  , treePast = []
-  , treeFuture = []
+  { columns = [[[]]]
   , viewState = 
       { active = "0"
       , activePast = []
@@ -68,30 +63,17 @@ defaultModel =
 
 init : Json.Value -> (Model, Cmd Msg)
 init savedState =
-  let
-    activateCmd mdl =
-      activateCards 
-        ( getDepth 0 mdl.tree mdl.viewState.active
-        , (centerlineIds 
-          mdl.tree 
-          (getTree mdl.viewState.active mdl.tree ? defaultTree) 
-          mdl.viewState.activePast
-          )
-        )
-  in
   case Json.decodeValue modelDecoder savedState of
     Ok model ->
       model 
-        ! [ activateCmd model
-          , focus model.viewState.active
+        ! [ focus model.viewState.active
           ]
     Err err ->
       let
         deb = Debug.log "init decode error" err
       in
       defaultModel 
-        ! [ activateCmd defaultModel
-          , focus defaultModel.viewState.active
+        ! [ focus defaultModel.viewState.active
           ]
 
 
@@ -110,98 +92,19 @@ update msg model =
     -- === Card Activation ===
 
     Activate id ->
-      let
-        vs = model.viewState
-        activeTree_ = getTree id model.tree
-        newPast =
-          case (id == vs.active) of
-            True ->
-              vs.activePast
-            False ->
-              vs.active :: vs.activePast |> List.take 40
-      in
-      case activeTree_ of
-        Just activeTree ->
-          let
-            desc =
-              activeTree
-                |> getDescendants
-                |> List.map .id
-
-            newModel =
-              { model
-                | viewState = 
-                  { vs
-                    | active = id
-                    , activePast = newPast
-                    , activeFuture = []
-                    , descendants = desc
-                  }
-              }
-          in
-          newModel
-            ! [ activateCards 
-                  ( getDepth 0 model.tree id
-                  , (centerlineIds model.tree activeTree newPast)
-                  )
-              ]
-
-        Nothing ->
-          model ! []
+      model ! []
 
     GoLeft id ->
-      let
-        targetId =
-          getParent id model.tree ? defaultTree |> .id
-      in
-      update (Activate targetId) model
+      model ! []
 
     GoDown id ->
-      let
-        targetId =
-          case getNextInColumn id model.tree of
-            Nothing -> id
-            Just ntree -> ntree.id
-      in
-      update (Activate targetId) model
+      model ! []
 
     GoUp id ->
-      let
-        targetId =
-          case getPrevInColumn id model.tree of
-            Nothing -> id
-            Just ptree -> ptree.id
-      in
-      update (Activate targetId) model
+      model ! []
 
     GoRight id ->
-      let
-        tree =
-          getTree id model.tree
-
-        childrenIds =
-          getChildren (tree ? defaultTree)
-            |> List.map .id
-
-        firstChildId =
-          childrenIds
-            |> List.head
-            |> Maybe.withDefault id
-
-        prevActiveOfChildren =
-          vs.activePast
-            |> List.filter (\a -> List.member a childrenIds)
-            |> List.head
-            |> Maybe.withDefault firstChildId
-      in
-      case tree of
-        Nothing ->
-          model ! []
-        Just t ->
-          if List.length childrenIds == 0 then
-            model ! []
-          else
-            update (Activate prevActiveOfChildren) model
+      model ! []
       
     -- === Card Editing  ===
 
@@ -214,7 +117,8 @@ update msg model =
     AttemptUpdateCard id ->
       let
         tree_ =
-          getTree id model.tree
+          Nothing
+          -- TODO: getTree id model.tree
       in
       case tree_ of
         Just tree ->
@@ -226,48 +130,16 @@ update msg model =
 
     UpdateCard (id, str) ->
       { model
-        | tree = Trees.update (Trees.Upd id str) model.tree
+        | columns = Columns.update (Columns.NoOp) model.columns
         , viewState = { vs | active = id, editing = Nothing }
       }
         ! [] 
-        |> andThen (AddToUndo model.tree)
-        |> andThen SaveTemp
 
     UpdateCardError err ->
       Debug.crash err
     
     DeleteCard id ->
-      let
-        filteredActive =
-          vs.activePast
-            |> List.filter (\a -> a /= id)
-
-        parent_ = getParent id model.tree
-        prev_ = getPrevInColumn id model.tree
-        next_ = getNextInColumn id model.tree
-
-        nextToActivate =
-          case (parent_, prev_, next_) of
-            (_, Just prev, _) ->
-              prev.id
-
-            (_, Nothing, Just next) ->
-              next.id
-
-            (Just parent, Nothing, Nothing) ->
-              parent.id
-
-            (Nothing, Nothing, Nothing) ->
-              "0"
-      in
-      { model
-        | tree = Trees.update (Trees.Del id) model.tree
-        , viewState = { vs | activePast = filteredActive }
-      }
-        ! []
-        |> andThen (Activate nextToActivate)
-        |> andThen (AddToUndo model.tree)
-        |> andThen SaveTemp
+      model ! []
 
     CancelCard ->
       { model 
@@ -277,251 +149,9 @@ update msg model =
 
 
     -- === Card Insertion  ===
-
-    Insert subtree pid idx ->
-      let
-        newId = subtree.id
-      in
-      { model
-        | tree = Trees.update (Trees.Ins subtree pid idx) model.tree
-        , nextId = model.nextId + 1
-      }
-        ! []
-        |> andThen (OpenCard newId subtree.content)
-        |> andThen (Activate newId)
-        |> andThen (AddToUndo model.tree)
-        |> andThen SaveTemp
-
-    InsertAbove id ->
-      let
-        idx =
-          getIndex id model.tree ? 999999
-
-        pid_ =
-          getParent id model.tree |> Maybe.map .id
-
-        insertMsg =
-          case pid_ of
-            Nothing ->
-              NoOp
-
-            Just pid ->
-              Insert (blankTree model.nextId) pid idx
-      in
-      case vs.editing of
-        Nothing ->
-          update insertMsg model
-
-        Just id ->
-          update (AttemptUpdateCard id) model
-            |> andThen insertMsg -- TODO: Only if SaveSuccess
-
-    InsertBelow id ->
-      let
-        idx =
-          getIndex id model.tree ? 999999
-
-        pid_ =
-          getParent id model.tree |> Maybe.map .id
-
-        insertMsg =
-          case pid_ of
-            Nothing ->
-              NoOp
-
-            Just pid ->
-              Insert (blankTree model.nextId) pid (idx+1)
-      in
-      case vs.editing of
-        Nothing ->
-          update insertMsg model
-
-        Just id ->
-          update (AttemptUpdateCard id) model
-            |> andThen insertMsg -- TODO: Only if SaveSuccess
-
-    InsertChild pid ->
-      let
-        insertMsg =
-          Insert (blankTree model.nextId) pid 999999
-      in
-      case vs.editing of
-        Nothing ->
-          update insertMsg model
-
-        Just id ->
-          update (AttemptUpdateCard id) model
-            |> andThen insertMsg -- TODO: Only if SaveSuccess
-
     -- === Card Moving  ===
-
-    Move subtree pid idx ->
-      let
-        newTree = Trees.update (Trees.Mov subtree pid idx) model.tree 
-      in
-      if newTree == model.tree then
-        model ! []
-      else
-        { model
-          | tree = newTree
-          , saved = False
-        }
-          ! []
-          |> andThen (AddToUndo model.tree)
-          |> andThen (Activate subtree.id)
-          |> andThen SaveTemp
-
-    MoveUp id ->
-      let
-        tree_ =
-          getTree id model.tree
-
-        pid_ =
-          getParent id model.tree
-            |> Maybe.map .id
-
-        refIdx_ =
-          getIndex id model.tree
-      in
-      case (tree_, pid_, refIdx_) of
-        (Just tree, Just pid, Just refIdx) ->
-          update (Move tree pid (refIdx-1)) model
-        _ ->
-          model ! []
-
-    MoveDown id ->
-      let
-        tree_ =
-          getTree id model.tree
-
-        pid_ =
-          getParent id model.tree
-            |> Maybe.map .id
-
-        refIdx_ =
-          getIndex id model.tree
-      in
-      case (tree_, pid_, refIdx_) of
-        (Just tree, Just pid, Just refIdx) ->
-          update (Move tree pid (refIdx+1)) model
-        _ ->
-          model ! []
-
-    MoveLeft id ->
-      let
-        tree_ =
-          getTree id model.tree
-
-        parentId =
-          getParent id model.tree
-            |> Maybe.map .id
-            |> Maybe.withDefault "invalid"
-
-        parentIdx_ =
-          getIndex parentId model.tree
-
-        grandparentId_ =
-          getParent parentId model.tree
-            |> Maybe.map .id
-
-      in
-      case (tree_, grandparentId_, parentIdx_) of
-        (Just tree, Just gpId, Just refIdx) ->
-          update (Move tree gpId (refIdx+1)) model
-        _ ->
-          model ! []
-
-    MoveRight id ->
-      let
-        tree_ =
-          getTree id model.tree
-
-        prev_ =
-          getPrev id model.tree
-            |> Maybe.map .id
-      in
-      case (tree_, prev_) of
-        (Just tree, Just prev) ->
-          update (Move tree prev 999999) model
-        _ ->
-          model ! []
-
-
     -- === History ===
-
-    Undo ->
-      let
-        prevState_ = List.head model.treePast
-      in
-      case prevState_ of
-        Nothing ->
-          model ! []
-        Just prevState ->
-          let
-            newModel =
-              { model
-                | tree = prevState
-                , treePast = List.drop 1 model.treePast
-                , treeFuture = model.tree :: model.treeFuture
-              } 
-          in
-          newModel
-            ! [ message ("undo-state-change", modelToValue newModel) ]
-
-    Redo ->
-      let
-        nextState_ = List.head model.treeFuture
-      in
-      case nextState_ of
-        Nothing ->
-          model ! []
-        Just nextState ->
-          let
-            newModel =
-              { model
-                | tree = nextState
-                , treePast = model.tree :: model.treePast
-                , treeFuture = List.drop 1 model.treeFuture
-              } 
-          in
-          newModel
-            ! [ message ("undo-state-change", modelToValue newModel) ]
-
-    AddToUndo oldTree ->
-      if oldTree == model.tree then
-        model ! []
-      else
-        let
-          newModel =
-            { model
-              | treePast = oldTree :: model.treePast |> List.take 20
-              , treeFuture = []
-            }
-        in
-        newModel
-          ! [ message ("undo-state-change", modelToValue newModel) ]
-
-
     -- === Ports ===
-
-    SaveTemp ->
-      let
-        newModel =
-          { model
-            | saved = False
-          }
-      in
-        newModel ! [ message ("save-temp", modelToValue newModel) ]
-
-    Confirm tag title msg ->
-      model
-        ! [ message
-            ( tag
-            , Json.Encode.object  [ ("title", Json.Encode.string title)
-                                  , ("message", Json.Encode.string msg)
-                                  ]
-            )
-          ]
 
     ExternalCommand (cmd, arg) ->
       case cmd of
@@ -563,7 +193,7 @@ update msg model =
 
         "enter" ->
           normalMode model
-            (OpenCard vs.active (getContent vs.active model.tree))
+            (OpenCard vs.active (getContent vs.active model.columns))
 
         "esc" ->
           update CancelCard model -- TODO
@@ -573,25 +203,25 @@ update msg model =
             (DeleteCard vs.active)
 
         "mod+j" ->
-          update (InsertBelow vs.active) model
+          update (NoOp) model
 
         "mod+down" ->
           normalMode model
-            (InsertBelow vs.active)
+            (NoOp)
 
         "mod+k" ->
-          update (InsertAbove vs.active) model
+          update (NoOp) model
 
         "mod+up" ->
           normalMode model
-            (InsertAbove vs.active)
+            (NoOp)
 
         "mod+l" ->
-          update (InsertChild vs.active) model
+          update (NoOp) model
 
         "mod+right" ->
           normalMode model
-            (InsertChild vs.active)
+            (NoOp)
 
         "h" ->
           normalMode model
@@ -627,31 +257,31 @@ update msg model =
 
         "alt+up" ->
           normalMode model
-            (MoveUp vs.active)
+            (NoOp)
 
         "alt+down" ->
           normalMode model
-            (MoveDown vs.active)
+            (NoOp)
 
         "alt+left" ->
           normalMode model
-            (MoveLeft vs.active)
+            (NoOp)
 
         "alt+right" ->
           normalMode model
-            (MoveRight vs.active)
+            (NoOp)
 
         "mod+z" ->
-          normalMode model Undo
+          normalMode model NoOp
 
         "mod+r" ->
-          normalMode model Redo
+          normalMode model NoOp
 
         "[" ->
-          normalMode model ActivatePast
+          normalMode model NoOp
 
         "]" ->
-          normalMode model ActivateFuture
+          normalMode model NoOp
 
         other ->
           let
@@ -688,7 +318,7 @@ onlyIf cond msg prevStep =
 
 view : Model -> Html Msg
 view model =
-  (lazy2 Trees.view model.viewState model.tree)
+  (lazy2 Columns.view model.viewState model.columns)
 
 
 

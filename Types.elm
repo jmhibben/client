@@ -22,23 +22,23 @@ type Msg
     | DeleteCard String
     | CancelCard
     -- === Card Insertion  ===
-    | Insert Tree String Int
-    | InsertAbove String
-    | InsertBelow String
-    | InsertChild String
+--  | Insert Tree String Int
+--  | InsertAbove String
+--  | InsertBelow String
+--  | InsertChild String
     -- === Card Moving  ===
-    | Move Tree String Int
-    | MoveUp String
-    | MoveDown String
-    | MoveLeft String
-    | MoveRight String
+--  | Move Tree String Int
+--  | MoveUp String
+--  | MoveDown String
+--  | MoveLeft String
+--  | MoveRight String
     -- === History ===
-    | Undo
-    | Redo
-    | AddToUndo Tree
+--  | Undo
+--  | Redo
+--  | AddToUndo Tree
     -- === Ports ===
-    | SaveTemp
-    | Confirm String String String
+--  | SaveTemp
+--  | Confirm String String String
     | DataIn Json.Value
     | ExternalCommand (String, String)
     | HandleKey String
@@ -68,13 +68,11 @@ type alias VisibleViewState =
   }
 
 
-type alias Tree =
+type alias Card =
   { id : String
   , content : String
-  , children : Children
   }
 
 
-type Children = Children (List Tree)
-type alias Group = List Tree
-type alias Column = List (List Tree)
+type alias Group = List Card
+type alias Column = List (List Card)

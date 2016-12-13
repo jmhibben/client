@@ -5,13 +5,10 @@ import Json.Encode
 import Json.Decode as Json exposing (..)
 import Array exposing (fromList)
 import String
-import TreeUtils exposing (newLine)
 
 
 type alias Model =
-  { tree : Tree
-  , treePast : List Tree
-  , treeFuture : List Tree
+  { columns : List Column
   , viewState : ViewState
   , nextId : Int
   , saved : Bool
@@ -23,23 +20,18 @@ type alias Model =
 modelToValue : Model -> Json.Encode.Value
 modelToValue model =
   Json.Encode.object
-   [ ("tree", treeToValue model.tree)
-   , ("treePast", Json.Encode.list (List.map treeToValue model.treePast))
-   , ("treeFuture", Json.Encode.list (List.map treeToValue model.treeFuture))
+   [ ("columns", Json.Encode.list (List.map columnToValue model.columns))
    , ("viewState", viewStateToValue model.viewState)
    , ("nextId", Json.Encode.int model.nextId)
    ]
 
 
-treeToValue : Tree -> Json.Encode.Value
-treeToValue tree =
-  case tree.children of
-    Children c ->
-      Json.Encode.object
-        [ ( "id", Json.Encode.string tree.id )
-        , ( "content", Json.Encode.string tree.content )
-        , ( "children", Json.Encode.list (List.map treeToValue c))
-        ]
+columnToValue : Column -> Json.Encode.Value
+columnToValue col =
+  Json.Encode.object
+    [ ("test", Json.Encode.string "test" )
+    ]
+
 
 
 viewStateToValue : ViewState -> Json.Encode.Value
@@ -55,52 +47,25 @@ viewStateToValue vs =
 
 
 
--- EXPORT ENCODINGS
-
-treeToSimpleJSON : Tree -> Json.Encode.Value
-treeToSimpleJSON tree =
-  case tree.children of
-    Children c ->
-      Json.Encode.array 
-      ( fromList
-        [ Json.Encode.object
-          [ ( "content", Json.Encode.string tree.content )
-          , ( "children", Json.Encode.array (fromList (List.map treeToSimpleJSON c)))
-          ]
-        ]
-      )
-
-
-
 
 
 -- DECODERS
 
 modelDecoder : Decoder Model
 modelDecoder =
-  Json.map6 Model
-    (field "tree" treeDecoder)
-    (oneOf [field "treePast" (list treeDecoder), succeed []])
-    (oneOf [field "treeFuture" (list treeDecoder), succeed []])
+  Json.map4 Model
+    (field "columns" (list (list (list cardDecoder))))
     (field "viewState" viewStateDecoder)
     (field "nextId" int)
     ( succeed True )
 
 
-treeDecoder : Decoder Tree
-treeDecoder =
-  Json.map3 Tree
-    (field "id" string)
-    (field "content" string)
-    (oneOf  [ ( field 
-                "children"
-                ( list (lazyRecurse (\_ -> treeDecoder)) 
-                  |> Json.map Children 
-                )
-              )
-            , succeed (Children [])
-            ]
-    )
+cardDecoder : Decoder Card
+cardDecoder =
+  Json.map2 Card
+    (succeed "testId")
+    (succeed "testContent")
+
 
 
 viewStateDecoder : Decoder ViewState
@@ -117,20 +82,6 @@ viewStateDecoder =
 
 
 -- HELPERS
-
-lazyRecurse : (() -> Decoder a) -> Decoder a
-lazyRecurse thunk =
-  let
-    toResult =
-      (\js -> decodeValue (thunk ()) js)
-  in
-  andThen
-    (\a ->
-      case toResult a of
-        Ok b -> succeed b
-        Err err -> fail err
-    )
-    value
 
 
 maybeToValue : Maybe a -> (a -> Json.Encode.Value) -> Json.Encode.Value

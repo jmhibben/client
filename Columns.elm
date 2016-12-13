@@ -2,6 +2,8 @@ module Columns exposing (..)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Events exposing (onClick, onDoubleClick)
+import Markdown exposing (toHtmlWith)
 
 import Types exposing (..)
 
@@ -35,9 +37,67 @@ update msg cols =
 
 view : ViewState -> List Column -> Html Msg
 view vstate cols =
+  let
+    viewablestate =
+      VisibleViewState
+        vstate.active
+        vstate.editing
+        vstate.descendants
+
+    viewCols =
+      [[[]]] ++
+      cols ++
+      [[[]]]
+  in
   div [ id "app"
       ]
-      [text "here"]
+      (List.indexedMap (viewColumn viewablestate) viewCols)
+
+
+viewColumn : VisibleViewState -> Int -> Column -> Html Msg
+viewColumn vstate depth col =
+  let
+    buffer =
+      [div [ class "buffer" ][]]
+  in
+  div
+    [ class "column" ]
+    ( buffer ++
+      (List.map (viewGroup vstate depth) col) ++
+      buffer
+    )
+
+
+viewGroup : VisibleViewState -> Int -> Group -> Html Msg
+viewGroup vstate depth cards =
+  div
+    [ classList [ ("group", True)
+                ]
+    ]
+    (List.map viewCard cards)
+
+
+viewCard : Card -> Html Msg
+viewCard card =
+  let
+    options =
+      { githubFlavored = Just { tables = True, breaks = True }
+      , defaultHighlighting = Nothing
+      , sanitize = False
+      , smartypants = False
+      }
+  in
+  div [ id ("card-" ++ card.id)
+      , classList [ ("card", True)
+                  ]
+      ]
+      [ Markdown.toHtmlWith options
+          [ class "view"
+          , onClick (Activate card.id)
+          , onDoubleClick (OpenCard card.id card.content)
+          ] 
+          card.content
+      ]
 
 
 

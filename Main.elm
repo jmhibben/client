@@ -48,7 +48,7 @@ type alias Model =
 
 defaultModel : Model
 defaultModel =
-  { columns = [[[]]]
+  { columns = defaultColumns
   , viewState = 
       { active = "0"
       , activePast = []

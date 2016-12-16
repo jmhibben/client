@@ -148,7 +148,6 @@ getActiveGroups (aci, afi) cols =
     inactiveGroups =
       List.take (aci+1) cols
         |> List.map (\col -> List.map (\_ -> False) col)
-        |> Debug.log "inactiveGroups"
 
     activeCols =
       List.drop (aci+1) cols
@@ -161,13 +160,12 @@ getActiveGroups (aci, afi) cols =
         |> List.map2 (\g b -> (b, List.length g)) col
 
     firstActiveState =
-      List.take 1 activeCols
+      List.head activeCols ? []
         |> List.indexedMap (\i g -> (i == afi, List.length g))
 
     activeGroups =
-      List.scanl nextCol firstActiveState activeCols
+      List.scanl nextCol firstActiveState (List.drop 1 activeCols)
         |> List.map (\c -> List.map (\g -> first g) c)
-        |> Debug.log "activeGroups"
   in
   inactiveGroups ++ activeGroups
 
@@ -185,7 +183,6 @@ getCoords id cols =
     let
       colIdx_ =
         getColumnIndex id cols
-          |> Debug.log "colIdx_"
 
       col_ =
         colIdx_
@@ -194,7 +191,6 @@ getCoords id cols =
       groupIdx_ =
         col_
           |> Maybe.andThen (\col -> getGroupIndex id col)
-          |> Debug.log "groupIdx_"
 
       group_ =
         case (groupIdx_, col_) of
@@ -224,7 +220,6 @@ getCoords id cols =
         Just (Coords c g i f)
 
       x -> 
-        let db1 = Debug.log "coords" x in
         Nothing 
   else
     Nothing

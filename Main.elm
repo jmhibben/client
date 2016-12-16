@@ -16,7 +16,7 @@ import Markdown
 import List.Extra as ListExtra
 
 import Types exposing (..)
-import Columns exposing (update, view, defaultColumns, getContent)
+import Columns exposing (update, view, defaultColumns, getContent, getCoords)
 import Coders exposing (modelDecoder, modelToValue)
 
 
@@ -92,7 +92,10 @@ update msg model =
     -- === Card Activation ===
 
     Activate id ->
-      model ! []
+      { model
+        | viewState = { vs | active = id }
+      } 
+        ! []
 
     GoLeft id ->
       model ! []
@@ -180,7 +183,23 @@ update msg model =
       case str of
         "mod+x" ->
           let
-            db1 = Debug.log "model" model
+            activeCoords =
+              getCoords vs.active model.columns
+                |> Debug.log "coords"
+
+            db1 =
+              case activeCoords of
+                Just coords ->
+                  Debug.log 
+                  "getActiveGroups" 
+                  (Columns.getActiveGroups ((coords.column,coords.flat)) model.columns)
+
+                Nothing -> 
+                  Debug.log 
+                  "Couldn't find coords."
+                  []
+
+
           in
           model ! []
 

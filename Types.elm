@@ -45,10 +45,6 @@ type Msg
 
 
 
--- OBJECTS
-
-
-
 
 -- TRANSIENTS
 
@@ -76,3 +72,11 @@ type alias Card =
 
 type alias Group = List Card
 type alias Column = List (List Card)
+
+
+type alias Coords =
+  { column : Int
+  , group : Int
+  , index : Int
+  , flat: Int
+  }

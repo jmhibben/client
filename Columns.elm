@@ -1,6 +1,6 @@
 module Columns exposing (..)
 
-import List.Extra exposing (getAt, findIndex, (!!))
+import List.Extra exposing (getAt, findIndex, (!!), zip)
 import Tuple exposing (first, second)
 
 import Html exposing (..)
@@ -59,39 +59,48 @@ view vstate cols =
       VisibleViewState
         vstate.active
         vstate.editing
-        vstate.descendants
+
+    coords =
+      getCoords vstate.active cols ? Coords 0 0 0 0
+
+    activeGroups =
+      getActiveGroups (coords.column, coords.flat) cols -- List (List Bool)
+
+    zipped =
+      cols
+        |> List.map2 zip activeGroups
 
     viewCols =
-      [[[]]] ++
-      cols
+      [[(False, [])]] ++
+      zipped
   in
   div [ id "app"
       ]
       (List.indexedMap (viewColumn viewablestate) viewCols)
 
 
-viewColumn : VisibleViewState -> Int -> Column -> Html Msg
+viewColumn : VisibleViewState -> Int -> List (Bool, Group)-> Html Msg
 viewColumn vstate depth col =
   let
     buffer =
       [div [ class "buffer" ][]]
+
+    unzipped =
+      List.unzip col
   in
   div
     [ class "column" ]
     ( buffer ++
-      (List.map (viewGroup vstate depth) col) ++
+      (List.map2 (viewGroup vstate depth) (first unzipped) (second unzipped)) ++
       buffer
     )
 
 
-viewGroup : VisibleViewState -> Int -> Group -> Html Msg
-viewGroup vstate depth cards =
+viewGroup : VisibleViewState -> Int -> Bool -> Group -> Html Msg
+viewGroup vstate depth isActive cards =
   let
     viewFunction c =
       let
-        isActive =
-          c.id == vstate.active
-
         isEditing =
           case vstate.editing of
             Just editId ->

@@ -60,7 +60,6 @@ type alias ViewState =
 type alias VisibleViewState =
   { active : String
   , editing : Maybe String
-  , descendants : List String
   }
 
 

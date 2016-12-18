@@ -48,14 +48,20 @@ type alias Model =
 
 defaultModel : Model
 defaultModel =
-  { columns = defaultColumns
-  , viewState = 
+  let
+    newViewState = 
       { active = "0"
+      , activeGroups = []
       , activePast = []
       , activeFuture = []
       , descendants = []
       , editing = Just "0"
       }
+        |> Columns.updateActiveGroups defaultColumns
+  in
+  { columns = defaultColumns
+  , viewState = 
+      newViewState
   , nextId = 1
   , saved = True
   }
@@ -92,8 +98,16 @@ update msg model =
     -- === Card Activation ===
 
     Activate id ->
+      let
+        newViewState =
+          { vs 
+            | active = id 
+          }
+            |> Columns.updateActiveGroups model.columns
+      in
       { model
-        | viewState = { vs | active = id }
+        | viewState =
+            newViewState
       } 
         ! []
 

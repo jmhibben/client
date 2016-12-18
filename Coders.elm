@@ -70,8 +70,9 @@ cardDecoder =
 
 viewStateDecoder : Decoder ViewState
 viewStateDecoder =
-  Json.map5 ViewState
+  Json.map6 ViewState
     (field "active" string)
+    (field "activeGroups" (list (list bool)))
     (field "activePast" (list string))
     (field "activeFuture" (list string))
     (field "descendants" (list string))

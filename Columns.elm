@@ -60,11 +60,8 @@ view vstate cols =
         vstate.active
         vstate.editing
 
-    coords =
-      getCoords vstate.active cols ? Coords 0 0 0 0
-
     activeGroups =
-      getActiveGroups (coords.column, coords.flat) cols -- List (List Bool)
+      vstate.activeGroups
 
     zipped =
       cols
@@ -87,6 +84,7 @@ viewColumn vstate depth col =
 
     unzipped =
       List.unzip col
+        |> Debug.log "unzipped"
   in
   div
     [ class "column" ]
@@ -97,10 +95,13 @@ viewColumn vstate depth col =
 
 
 viewGroup : VisibleViewState -> Int -> Bool -> Group -> Html Msg
-viewGroup vstate depth isActive cards =
+viewGroup vstate depth isActiveGroup cards =
   let
     viewFunction c =
       let
+        isActive =
+          c.id == vstate.active
+
         isEditing =
           case vstate.editing of
             Just editId ->
@@ -113,6 +114,7 @@ viewGroup vstate depth isActive cards =
   in
   div
     [ classList [ ("group", True)
+                , ("active-descendant", isActiveGroup)
                 ]
     ]
     (List.map viewFunction cards)
@@ -140,6 +142,25 @@ viewCard (isActive, isEditing, depth) card =
           ] 
           card.content
       ]
+
+
+
+
+-- VIEWSTATE UPDATES
+
+updateActiveGroups : List Column -> ViewState -> ViewState
+updateActiveGroups cols vs =
+  let
+    coords =
+      getCoords vs.active cols
+        |> Maybe.withDefault (Coords 0 0 0 0)
+
+    activeGroups =
+      getActiveGroups (coords.column, coords.flat) cols
+  in
+  { vs
+    | activeGroups = activeGroups
+  }
 
 
 

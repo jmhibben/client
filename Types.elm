@@ -50,6 +50,7 @@ type Msg
 
 type alias ViewState =
   { active : String
+  , activeGroups : List (List Bool)
   , activePast : List String
   , activeFuture : List String
   , descendants : List String

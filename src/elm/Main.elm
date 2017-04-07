@@ -102,7 +102,7 @@ init savedState =
       let
         newModel =
           { model 
-            | data = Trees.updateData model.data
+            | data = Trees.updateColumns model.data
           }
       in
       newModel
@@ -121,30 +121,7 @@ init savedState =
 
 initNodes : Json.Value -> (Model, Cmd Msg)
 initNodes nodeJson =
-  case Json.decodeValue nodesDecoder nodeJson of
-    Ok nodes ->
-      let
-        newTree_ =
-          nodesToTree nodes "0"
-      in
-      case newTree_ of
-        Ok newTree ->
-          { defaultModel
-            | data =
-              Trees.Model newTree [] Dict.empty
-                |> Trees.updateData
-          }
-            ! []
-
-        Err err ->
-          let _ = Debug.log "err" err in
-          defaultModel ! []
-
-    Err err ->
-      let
-        _ = Debug.log "nodes err" err
-      in
-      defaultModel ! []
+  defaultModel ! []
 
 
 
@@ -517,52 +494,10 @@ update msg model =
     -- === History ===
 
     Undo ->
-      let
-        prevTree_ = List.head model.treePast
-      in
-      case prevTree_ of
-        Just prevTree ->
-          let
-            newModel =
-              { model
-                | data =
-                    { tree = prevTree
-                    , columns = getColumns [[[ prevTree]]]
-                    , nodes = getNodes prevTree
-                    }
-                , treePast = List.drop 1 model.treePast
-                , treeFuture = model.data.tree :: model.treeFuture
-              }
-          in
-          newModel
-            ! [ message ("undo-state-change", modelToValue newModel) ]
-
-        Nothing ->
-          model ! []
+      model ! []
 
     Redo ->
-      let
-        nextTree_ = List.head model.treeFuture
-      in
-      case nextTree_ of
-        Just nextTree ->
-          let
-            newModel =
-              { model
-                | data =
-                    { tree = nextTree
-                    , columns = getColumns [[[ nextTree ]]]
-                    , nodes = Dict.empty
-                    }
-                , treePast = model.data.tree :: model.treePast
-                , treeFuture = List.drop 1 model.treeFuture
-              }
-          in
-          newModel
-            ! [ message ("undo-state-change", modelToValue newModel) ]
-
-        Nothing ->
-          model ! []
+      model ! []
 
     AddToUndo oldTree ->
       if oldTree /= model.data.tree then
@@ -681,20 +616,7 @@ update msg model =
       initNodes json
 
     ChangeIn (id, json) ->
-      let
-        treeNode_ =
-          Json.decodeValue treeNodeDecoder json
-      in
-      case treeNode_ of
-        Ok treeNode ->
-          { model
-            | data = Trees.update (Trees.Node id treeNode) model.data
-          }
-            ! [] 
-
-        Err err ->
-          let _ = Debug.log "ChangeIn err" err in
-          model ! []
+      model ! []
 
     HandleKey str ->
       let

@@ -1,6 +1,7 @@
 module Types exposing (..)
 
 import Json.Decode as Json
+import Dict exposing (Dict)
 
 
 
@@ -69,11 +70,21 @@ type alias Tree =
 
 
 type alias TreeNode =
-  { content : String
+  { card : String
   , children : List String
   , rev : Maybe String
   , deleted : Bool
   }
+
+
+type alias Card =
+  { content : String
+  , rev : Maybe String
+  }
+
+
+type alias Graph =
+  (Dict String Card, Dict String TreeNode)
 
 
 type Children = Children (List Tree)

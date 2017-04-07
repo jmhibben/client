@@ -20,6 +20,7 @@ type alias Model =
   { tree : Tree
   , columns : List Column
   , nodes : Dict String TreeNode
+  , cards : Dict String Card
   }
 
 
@@ -27,7 +28,8 @@ defaultModel : Model
 defaultModel =
   { tree = defaultTree
   , columns = getColumns [[[defaultTree]]]
-  , nodes = Dict.fromList [("0", TreeNode "" [] Nothing False)]
+  , nodes = Dict.fromList [("0", TreeNode "card-0" [] Nothing False)]
+  , cards = Dict.fromList [("card-0", Card "defaultModel" Nothing)]
   }
 
 
@@ -61,36 +63,11 @@ type TreeMsg
   | Upd String String
   | Mov Tree String Int
   | Del String
-  | Node String TreeNode
 
 
 update : TreeMsg -> Model -> Model
 update msg model =
   case msg of
-    Node id treeNode ->
-      let
-        newNodes =
-          Dict.insert id treeNode model.nodes
-
-        newTree =
-          if newNodes /= model.nodes then
-            nodesToTree newNodes "0"
-              |> Result.withDefault defaultTree
-          else
-            model.tree
-
-        newColumns =
-          if newTree /= model.tree then
-            getColumns [[[newTree]]]
-          else
-            model.columns
-      in
-      { model
-        | tree = newTree
-        , columns = newColumns
-        , nodes = newNodes
-      }
-
     _ ->
       let
         newTree =
@@ -103,10 +80,7 @@ update msg model =
             model.columns
 
         newNodes =
-          if newTree /= model.tree then
-            getNodes newTree
-          else
-            model.nodes
+          model.nodes
       in
       { model
         | tree = newTree
@@ -119,14 +93,6 @@ updateColumns : Model -> Model
 updateColumns model =
   { model
     | columns = getColumns [[[ model.tree ]]]
-  }
-
-
-updateData : Model -> Model
-updateData model =
-  { model
-    | columns = getColumns [[[ model.tree ]]]
-    , nodes = getNodes model.tree
   }
 
 
@@ -150,9 +116,6 @@ updateTree msg tree =
 
     Del id ->
       pruneSubtree id tree
-
-    Node id treeNode ->
-      tree
 
 
 apply : List TreeMsg -> Tree -> Tree

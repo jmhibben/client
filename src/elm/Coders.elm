@@ -25,6 +25,7 @@ modelToValue : Model -> Json.Encode.Value
 modelToValue model =
   Json.Encode.object
    [ ("nodes", nodesToValue model.data.nodes)
+   , ("cards", cardsToValue model.data.cards)
    , ("treePast", Json.Encode.list (List.map treeToValue model.treePast))
    , ("treeFuture", Json.Encode.list (List.map treeToValue model.treeFuture))
    , ("viewState", viewStateToValue model.viewState)
@@ -65,11 +66,26 @@ nodesToValue nodes =
 treeNodeToValue : TreeNode -> Json.Encode.Value
 treeNodeToValue treeNode =
   Json.Encode.object
-    [ ( "content", Json.Encode.string treeNode.content )
+    [ ( "card", Json.Encode.string treeNode.card )
     , ( "children", Json.Encode.list (List.map Json.Encode.string treeNode.children) )
     , ( "rev", maybeToValue treeNode.rev Json.Encode.string )
     , ( "deleted", Json.Encode.bool treeNode.deleted )
     ]
+
+
+cardsToValue : Dict String Card -> Json.Encode.Value
+cardsToValue cards =
+  Dict.toList cards
+    |> List.map (\(k, v) -> (k, cardToValue v))
+    |> Json.Encode.object
+
+
+cardToValue : Card -> Json.Encode.Value
+cardToValue card =
+  Json.Encode.object
+  [ ("content", Json.Encode.string card.content )
+  , ("rev", maybeToValue card.rev Json.Encode.string )
+  ]
 
 
 
@@ -108,9 +124,10 @@ modelDecoder =
 
 treesModelDecoder : Decoder Trees.Model
 treesModelDecoder =
-  Json.map3 Trees.Model
+  Json.map4 Trees.Model
     treeDecoder
     (succeed [])
+    (succeed Dict.empty)
     (succeed Dict.empty)
 
 

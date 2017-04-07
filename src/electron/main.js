@@ -72,7 +72,7 @@ self.gingko =  Elm.Main.fullscreen(null)
 /* === Database === */
 
 var db = new PouchDB('data2')
-var remoteCouch = 'http://localhost:5984/kittens'
+var remoteCouch = 'http://localhost:5984/new-treenodes'
 
 db.sync(remoteCouch, {live: true, retry: true}, (err) => console.log(err))
 db.changes({since: 'now', include_docs: true, live: true})

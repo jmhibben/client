@@ -117,15 +117,15 @@ updateGraph msg (cards, nodes) =
             Just treeNode ->
               Just
                 { treeNode
-                  | children = treeNode.children ++ [newTreeNodeId]
+                  | children = treeNode.children ++ [newTreeNodeId] -- TODO: not at end
                 }
 
             Nothing -> Nothing
 
         newNodes =
           nodes
-            |> Dict.insert newTreeNodeId newTreeNode -- add newTreeNode to nodes
-            |> Dict.update pid updFn -- modify pid to insert newTreeNodeId into children at end
+            |> Dict.insert newTreeNodeId newTreeNode
+            |> Dict.update pid updFn
       in
       ( Dict.insert
           ("card-" ++ (timeJSON ()))

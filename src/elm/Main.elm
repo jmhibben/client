@@ -121,6 +121,7 @@ init savedState =
 
 initNodes : Json.Value -> (Model, Cmd Msg)
 initNodes nodeJson =
+  let _ = Debug.log "initNodes" "now" in
   defaultModel ! []
 
 
@@ -323,6 +324,22 @@ update msg model =
 
     -- === Card Insertion  ===
 
+    GInsert card pid idx ->
+      let
+        oldData = model.data
+
+        (newCards, newNodes) =
+          Trees.updateGraph (Trees.Add card pid idx) (model.data.cards, model.data.nodes)
+
+        _ = Debug.log "GInsert called" card
+      in
+      { model
+        | data =
+            { oldData | cards = newCards, nodes = newNodes }
+      }
+        ! []
+
+
     Insert subtree pid idx ->
       let
         newId = subtree.id
@@ -387,7 +404,7 @@ update msg model =
     InsertChild pid ->
       let
         insertMsg =
-          Insert (blankTree (timeJSON ()) (timestamp ())) pid 999999
+          GInsert (Card "" Nothing) pid 999999
       in
       case vs.editing of
         Nothing ->

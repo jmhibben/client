@@ -11,6 +11,7 @@ import Markdown
 
 import Types exposing (..)
 import TreeUtils exposing (..)
+import Sha1 exposing (sha1, timeJSON)
 
 
 
@@ -65,6 +66,11 @@ type TreeMsg
   | Del String
 
 
+type NodeMsg
+  = Nope
+  | Add Card String Int
+
+
 update : TreeMsg -> Model -> Model
 update msg model =
   case msg of
@@ -94,6 +100,42 @@ updateColumns model =
   { model
     | columns = getColumns [[[ model.tree ]]]
   }
+
+
+updateGraph : NodeMsg -> Graph -> Graph
+updateGraph msg (cards, nodes) =
+  case msg of
+    Add card pid pos ->
+      let
+        newCardId = "card-" ++ (timeJSON ())
+        newTreeNodeId = "node-" ++ (sha1 newCardId)
+        newTreeNode = TreeNode newCardId [] Nothing False
+
+        updFn : Maybe TreeNode -> Maybe TreeNode
+        updFn treeNode_ =
+          case treeNode_ of
+            Just treeNode ->
+              Just
+                { treeNode
+                  | children = treeNode.children ++ [newTreeNodeId]
+                }
+
+            Nothing -> Nothing
+
+        newNodes =
+          nodes
+            |> Dict.insert newTreeNodeId newTreeNode -- add newTreeNode to nodes
+            |> Dict.update pid updFn -- modify pid to insert newTreeNodeId into children at end
+      in
+      ( Dict.insert
+          ("card-" ++ (timeJSON ()))
+          card
+          cards
+      , newNodes
+      )
+
+    _ ->
+      (cards, nodes)
 
 
 updateTree : TreeMsg -> Tree -> Tree

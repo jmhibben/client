@@ -35,6 +35,7 @@ function loadModel(db, callback) {
   db.allDocs({
     include_docs: true
   }).then(function (result) {
+    console.log(result)
     callback(rowsToNodes(result.rows))
   }).catch(function (err) {
     console.log(err)

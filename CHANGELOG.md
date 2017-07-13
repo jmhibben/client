@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 - Removed auto-titles.
+- Update Electron framework from 1.4.14 to 1.7.4-beta
 
 
 ## [0.1.3] - 2017-01-16
